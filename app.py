@@ -1,8 +1,8 @@
 import dash
+import numpy as np
+import plotly.graph_objs as go
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
-import plotly.graph_objs as go
-import numpy as np
 from flask import Flask
 
 # Constants
@@ -256,9 +256,6 @@ app.layout = html.Div(
                 dcc.Graph(id="gaussian-plot", style={"height": "500px"}),
             ]
         ),
-        dcc.Interval(
-            id="interval-component", interval=100, n_intervals=0  # Update every 100ms
-        ),
     ]
 )
 
@@ -266,6 +263,7 @@ app.layout = html.Div(
 @app.callback(
     [Output("bps-slider", "value"), Output("critical-bps-label", "children")],
     [Input("velocity-slider", "value"), Input("angle-slider", "value")],
+    prevent_initial_call=True,
 )
 def update_critical_bps(velocity, angle):
     crit_bps = shots_per_second(D, velocity, angle)
@@ -275,13 +273,12 @@ def update_critical_bps(velocity, angle):
 @app.callback(
     Output("ideal-plot", "figure"),
     [
-        Input("interval-component", "n_intervals"),
         Input("velocity-slider", "value"),
         Input("angle-slider", "value"),
         Input("bps-slider", "value"),
     ],
 )
-def update_ideal_plot(n, velocity, angle, bps):
+def update_ideal_plot(velocity, angle, bps):
     x_pos, y_pos, colors, max_x, max_y = generate_frame_data(
         velocity, angle, bps, v_std=0, theta_std=0, use_gaussian=False
     )
@@ -341,7 +338,6 @@ def update_ideal_plot(n, velocity, angle, bps):
 @app.callback(
     Output("gaussian-plot", "figure"),
     [
-        Input("interval-component", "n_intervals"),
         Input("velocity-slider", "value"),
         Input("angle-slider", "value"),
         Input("bps-slider", "value"),
@@ -349,7 +345,7 @@ def update_ideal_plot(n, velocity, angle, bps):
         Input("theta-std-slider", "value"),
     ],
 )
-def update_gaussian_plot(n, velocity, angle, bps, v_std, theta_std):
+def update_gaussian_plot(velocity, angle, bps, v_std, theta_std):
     x_pos, y_pos, colors, max_x, max_y = generate_frame_data(
         velocity, angle, bps, v_std, theta_std, use_gaussian=True
     )
