@@ -159,7 +159,9 @@ app.layout = html.Div(
                             min=0.1,
                             max=100,
                             step=0.1,
-                            value=10,
+                            value=shots_per_second(
+                                D, 10, 45
+                            ),  # Calculate initial critical BPS
                             marks={i: str(i) for i in [0.1, 1, 10, 25, 50, 75, 100]},
                             tooltip={"placement": "bottom", "always_visible": True},
                         ),
@@ -170,6 +172,7 @@ app.layout = html.Div(
                     [
                         html.H4(
                             id="critical-bps-label",
+                            children=f"Critical BPS: {shots_per_second(D, 10, 45):.2f}",
                             style={"color": "red", "textAlign": "center"},
                         )
                     ],
@@ -227,7 +230,27 @@ app.layout = html.Div(
                             style={"width": "45%", "display": "inline-block"},
                         ),
                     ],
-                    style={"marginBottom": "30px"},
+                    style={"marginBottom": "20px"},
+                ),
+                html.Div(
+                    [
+                        html.Button(
+                            "🎲 Regenerate Random Trajectories",
+                            id="refresh-button",
+                            n_clicks=0,
+                            style={
+                                "padding": "10px 20px",
+                                "fontSize": "16px",
+                                "cursor": "pointer",
+                                "backgroundColor": "#4CAF50",
+                                "color": "white",
+                                "border": "none",
+                                "borderRadius": "5px",
+                                "fontWeight": "bold",
+                            },
+                        )
+                    ],
+                    style={"textAlign": "center", "marginBottom": "20px"},
                 ),
             ],
             style={
@@ -263,7 +286,6 @@ app.layout = html.Div(
 @app.callback(
     [Output("bps-slider", "value"), Output("critical-bps-label", "children")],
     [Input("velocity-slider", "value"), Input("angle-slider", "value")],
-    prevent_initial_call=True,
 )
 def update_critical_bps(velocity, angle):
     crit_bps = shots_per_second(D, velocity, angle)
@@ -279,6 +301,12 @@ def update_critical_bps(velocity, angle):
     ],
 )
 def update_ideal_plot(velocity, angle, bps):
+    # Validate inputs
+    if velocity is None or angle is None or bps is None:
+        velocity = 10
+        angle = 45
+        bps = shots_per_second(D, 10, 45)
+
     x_pos, y_pos, colors, max_x, max_y = generate_frame_data(
         velocity, angle, bps, v_std=0, theta_std=0, use_gaussian=False
     )
@@ -294,7 +322,8 @@ def update_ideal_plot(velocity, angle, bps):
                 "x1": x_pos[i] + D / 2,
                 "y1": y_pos[i] + D / 2,
                 "fillcolor": colors[i],
-                "line": {"color": "black", "width": 1},
+                "line": {"color": "black", "width": 2},  # Increased line width
+                "opacity": 1.0,
             }
         )
 
@@ -304,8 +333,8 @@ def update_ideal_plot(velocity, angle, bps):
     # Add invisible scatter points to set the data range
     fig.add_trace(
         go.Scatter(
-            x=[0, max_x],
-            y=[0, max_y * 1.2],
+            x=[0, max_x if max_x > 0 else 10],
+            y=[0, (max_y * 1.2) if max_y > 0 else 10],
             mode="markers",
             marker=dict(size=0.1, color="rgba(0,0,0,0)"),
             showlegend=False,
@@ -322,7 +351,7 @@ def update_ideal_plot(velocity, angle, bps):
         ),
         yaxis=dict(
             title="Height (m)",
-            range=[0, max_y * 1.2 if max_y > 0 else 10],
+            range=[0, (max_y * 1.2) if max_y > 0 else 10],
         ),
         shapes=shapes,
         showlegend=False,
@@ -343,9 +372,20 @@ def update_ideal_plot(velocity, angle, bps):
         Input("bps-slider", "value"),
         Input("v-std-slider", "value"),
         Input("theta-std-slider", "value"),
+        Input("refresh-button", "n_clicks"),
     ],
 )
-def update_gaussian_plot(velocity, angle, bps, v_std, theta_std):
+def update_gaussian_plot(velocity, angle, bps, v_std, theta_std, n_clicks):
+    # Validate inputs
+    if velocity is None or angle is None or bps is None:
+        velocity = 10
+        angle = 45
+        bps = shots_per_second(D, 10, 45)
+    if v_std is None:
+        v_std = 0.25
+    if theta_std is None:
+        theta_std = 1.0
+
     x_pos, y_pos, colors, max_x, max_y = generate_frame_data(
         velocity, angle, bps, v_std, theta_std, use_gaussian=True
     )
@@ -361,7 +401,8 @@ def update_gaussian_plot(velocity, angle, bps, v_std, theta_std):
                 "x1": x_pos[i] + D / 2,
                 "y1": y_pos[i] + D / 2,
                 "fillcolor": colors[i],
-                "line": {"color": "black", "width": 1},
+                "line": {"color": "black", "width": 2},  # Increased line width
+                "opacity": 1.0,
             }
         )
 
@@ -371,8 +412,8 @@ def update_gaussian_plot(velocity, angle, bps, v_std, theta_std):
     # Add invisible scatter points to set the data range
     fig.add_trace(
         go.Scatter(
-            x=[0, max_x],
-            y=[0, max_y * 1.2],
+            x=[0, max_x if max_x > 0 else 10],
+            y=[0, (max_y * 1.2) if max_y > 0 else 10],
             mode="markers",
             marker=dict(size=0.1, color="rgba(0,0,0,0)"),
             showlegend=False,
@@ -389,7 +430,7 @@ def update_gaussian_plot(velocity, angle, bps, v_std, theta_std):
         ),
         yaxis=dict(
             title="Height (m)",
-            range=[0, max_y * 1.2 if max_y > 0 else 10],
+            range=[0, (max_y * 1.2) if max_y > 0 else 10],
         ),
         shapes=shapes,
         showlegend=False,
